@@ -1,32 +1,30 @@
-pipeline
-	agent any
-	
-	environment {
-        // ข้อมูล Registry และ Image (แก้ให้ตรงกับของคุณ)
+pipeline {
+    agent any
+
+    environment {
+        // ข้อมูล Registry และ Image
         REGISTRY = "ghcr.io"
         IMAGE_NAME = "aunkko-0/nestjs-api-20"
-        CREDENTIALS_ID = 'Nestjs-jenkins' // ชื่อ ID ที่คุณตั้งใน Jenkins
+        CREDENTIALS_ID = 'Nestjs-jenkins' 
+    }
 
-        }
-	
-	stages {
+    stages {
         stage('1. Checkout Source') {
             steps {
-                // ดึงโค้ดจาก Github
                 checkout scm
             }
         }
 
-	stage('2. Docker Login') {
+        stage('2. Docker Login') {
             steps {
-                withCredentials([usernamePassword(credentialsId: "${CREDENTIALS_ID}", usernameVariable: 'GHCR_USER', passwordVariable: 'GHCR_PAT')]) {
-                    // ใช้ Single Quotes ('...') เพื่อความปลอดภัย และแก้ปัญหาการส่งค่า Password
+                // ต้องใช้ ID ให้ตรงกับใน Jenkins Credentials
+                withCredentials([usernamePassword(credentialsId: "${env.CREDENTIALS_ID}", passwordVariable: 'GHCR_PAT', usernameVariable: 'GHCR_USER')]) {
                     sh 'echo $GHCR_PAT | docker login $REGISTRY -u $GHCR_USER --password-stdin'
                 }
             }
         }
-	
-	stage('3. Build Image') {
+
+        stage('3. Build Image') {
             steps {
                 sh 'docker build -t $REGISTRY/$IMAGE_NAME:latest .'
             }
@@ -37,3 +35,16 @@ pipeline
                 sh 'docker push $REGISTRY/$IMAGE_NAME:latest'
             }
         }
+    }
+
+    post {
+        always {
+            // ลบ Image หลังทำงานเสร็จเพื่อประหยัดพื้นที่
+            sh 'docker rmi $REGISTRY/$IMAGE_NAME:latest || true'
+            cleanWs()
+        }
+        success {
+            echo "Successfully built and pushed: $IMAGE_NAME"
+        }
+    }
+}
