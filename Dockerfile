@@ -1,4 +1,4 @@
-<<<<<<< HEAD
+#<<<<<<< HEAD
 FROM node:20-alpine AS builder
 
 WORKDIR /app
@@ -8,7 +8,7 @@ WORKDIR /app
 FROM node:20-alpine AS builder
 WORKDIR /app
 # ต้องมั่นใจว่าไฟล์ package.json อยู่ในโฟลเดอร์เดียวกับ Dockerfile
->>>>>>> 90908c0 (update dockerfile)
+#>>>>>>> 90908c0 (update dockerfile)
 COPY package*.json ./
 RUN npm install
 COPY . .
