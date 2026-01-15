@@ -5,7 +5,7 @@ pipeline {
         // ข้อมูล Registry และ Image
         REGISTRY = "ghcr.io"
         IMAGE_NAME = "aunkko-0/nestjs-api-20"
-        CREDENTIALS_ID = 'Nestjs-jenkins' 
+        CREDENTIALS_ID = 'nestjs' 
     }
 
     stages {
