@@ -1,50 +1,54 @@
 pipeline {
     agent any
 
+    parameters {
+        string(
+            name: 'IMAGE_TAG', 
+            defaultValue: 'latest', 
+            description: 'ใส่เฉพาะ Tag (เช่น latest, v1) *ไม่ต้องใส่ชื่อเต็ม*'
+        )
+    }
+
     environment {
+        // ผมใส่ชื่อ Image ยาวๆ ของคุณไว้ตรงนี้ให้แล้วครับ
         REGISTRY = "ghcr.io"
         IMAGE_NAME = "aunkko-0/nestjs-api-20"
-        CREDENTIALS_ID = 'nestjs' 
+        
+        // เอาค่ามารวมร่างกัน: ghcr.io/aunkko-0/nestjs-api-20:latest
+        TARGET_IMAGE = "${REGISTRY}/${IMAGE_NAME}:${params.IMAGE_TAG}"
     }
 
     stages {
-        stage('1. Checkout Source') {
+        stage('🚀 Deploy to Kubernetes') {
             steps {
-                checkout scm
-            }
-        }
-
-        stage('2. Docker Login') {
-            steps {
-                withCredentials([usernamePassword(credentialsId: "${env.CREDENTIALS_ID}", passwordVariable: 'GHCR_PAT', usernameVariable: 'GHCR_USER')]) {
-                    sh 'echo $GHCR_PAT | docker login $REGISTRY -u $GHCR_USER --password-stdin'
+                script {
+                    echo "กำลัง Deploy Image: ${TARGET_IMAGE} ..."
+                    
+                    // 1. สั่งเปลี่ยน Image (อัปเดต config)
+                    sh "kubectl set image deployment/nestjs-api nestjs-api=${TARGET_IMAGE}"
+                    
+                    // 2. สั่ง Restart (บังคับให้ดึง latest ตัวใหม่ล่าสุดเสมอ)
+                    sh "kubectl rollout restart deployment/nestjs-api"
                 }
             }
         }
 
-        stage('3. Build Image') {
+        stage('✅ Verify Rollout') {
             steps {
-                // ระบุไฟล์ Dockerfile ให้ชัดเจน และมีจุด . ท้ายสุด
-                sh 'docker build -f Dockerfile -t $REGISTRY/$IMAGE_NAME:latest .'
+                script {
+                    // รอแบบไม่มีกำหนด (No Timeout) ตามที่คุณขอครับ
+                    sh "kubectl rollout status deployment/nestjs-api"
+                }
             }
         }
-
-        stage('4. Push to Registry') {
-            steps {
-                sh 'docker push $REGISTRY/$IMAGE_NAME:latest'
-            }
-        }
-    } // <--- ปิด stages ตรงนี้
+    }
 
     post {
-        always {
-            // ส่วนนี้ยังอยู่ภายใน pipeline เพราะวงเล็บปิด pipeline อยู่ด้านล่างสุด
-            sh 'docker rmi $REGISTRY/$IMAGE_NAME:latest || true'
-            cleanWs()
-        }
         success {
-            echo "Successfully built and pushed: $IMAGE_NAME"
+            echo "🎉 Deploy ${params.IMAGE_TAG} สำเร็จเรียบร้อย!"
         }
-    } // <--- ปิด post ตรงนี้
-
-} // <--- ปิด pipeline ตรงนี้ (ต้องเป็นตัวสุดท้ายของไฟล์!)
+        failure {
+            echo "❌ Deploy ไม่สำเร็จ กรุณาเช็ค Logs"
+        }
+    }
+}
